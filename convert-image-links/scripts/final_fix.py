@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""
-终极修复 v3:
-1. 将所有 ![[image]] 转换为 ![image](正确相对路径)
-2. 对链接路径中的特殊字符（空格、中文等）做 URL 编码
-3. 修正所有损坏的链接
-
-使用方式：修改下方 CONFIG 区域的 MODE / TARGET / VAULT_ROOT，直接运行即可。
-"""
 import os, re
 from urllib.parse import quote, unquote
 
