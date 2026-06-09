@@ -477,7 +477,21 @@ def generate_html_report(df, output_file, args):
         </div>
         <div class="filter-group">
             <label>告警级别</label>
-            <select id="filterLevel"><option value="">全部级别</option></select>
+            <div class="multi-select" id="multiLevel">
+                <div class="multi-select-trigger" onclick="toggleMultiDropdown('multiLevel')">
+                    <span class="multi-select-text" id="levelText">全部级别</span>
+                    <span class="multi-select-count" id="levelCount" style="display:none"></span>
+                    <span class="multi-select-arrow">&#x25BC;</span>
+                </div>
+                <div class="multi-select-dropdown" id="multiLevelDropdown">
+                    <div class="select-all-row">
+                        <a href="javascript:void(0)" onclick="event.stopPropagation();selectAllLevels(true)">全选</a>
+                        &nbsp;
+                        <a href="javascript:void(0)" onclick="event.stopPropagation();selectAllLevels(false)">取消</a>
+                    </div>
+                    <div id="levelOptions"></div>
+                </div>
+            </div>
         </div>
         <div class="filter-group">
             <label>统计周期</label>
@@ -621,7 +635,7 @@ const EXPORT_FIELDS = {json.dumps(config.EXPORT_FIELDS, ensure_ascii=False)};
 // ==================== 多选状态 ====================
 let selectedSystems = [...ALL_SYSTEMS];
 let selectedPeriods = [...ALL_PERIODS];
-let levelFilter = '';
+let selectedLevels = [...ALL_LEVELS];
 
 // ==================== 排序/分页状态 ====================
 let sortColumn = '告警记录数';
@@ -643,19 +657,14 @@ const LEVEL_COLORS = {{
 
 // ==================== 初始化 ====================
 function init() {{
-    // 填充告警级别下拉
-    populateSelect('filterLevel', ALL_LEVELS);
+    // 填充多选：告警级别
+    buildMultiCheckboxes('levelOptions', ALL_LEVELS, selectedLevels, onLevelToggle);
     // 填充多选：系统
     buildMultiCheckboxes('systemOptions', ALL_SYSTEMS, selectedSystems, onSystemToggle);
     // 填充多选：周期
     buildMultiCheckboxes('periodOptions', ALL_PERIODS, selectedPeriods, onPeriodToggle);
-    
+
     // 绑定事件
-    document.getElementById('filterLevel').addEventListener('change', function() {{
-        levelFilter = this.value;
-        applyAllFilters();
-    }});
-    
     // 点击外部关闭多选下拉
     document.addEventListener('click', function(e) {{
         if (!e.target.closest('.multi-select')) {{
@@ -700,6 +709,10 @@ function onCheckboxChange(prefix, cb) {{
         if (cb.checked) {{ if (!selectedPeriods.includes(val)) selectedPeriods.push(val); }}
         else {{ selectedPeriods = selectedPeriods.filter(p => p !== val); }}
         updateMultiSelectDisplay('multiPeriod', 'periodText', 'periodCount', selectedPeriods, ALL_PERIODS, '周期');
+    }} else if (prefix === 'level') {{
+        if (cb.checked) {{ if (!selectedLevels.includes(val)) selectedLevels.push(val); }}
+        else {{ selectedLevels = selectedLevels.filter(l => l !== val); }}
+        updateMultiSelectDisplay('multiLevel', 'levelText', 'levelCount', selectedLevels, ALL_LEVELS, '级别');
     }}
     applyAllFilters();
 }}
@@ -752,8 +765,18 @@ function selectAllPeriods(select) {{
     applyAllFilters();
 }}
 
+function selectAllLevels(select) {{
+    const checkboxes = document.querySelectorAll('#levelOptions input[type="checkbox"]');
+    checkboxes.forEach(cb => {{ cb.checked = select; }});
+    selectedLevels = select ? [...ALL_LEVELS] : [];
+    updateMultiSelectDisplay('multiLevel', 'levelText', 'levelCount', selectedLevels, ALL_LEVELS, '级别');
+    applyAllFilters();
+}}
+
 function onSystemToggle() {{ /* handled in onCheckboxChange */ }}
 function onPeriodToggle() {{ /* handled in onCheckboxChange */ }}
+
+function onLevelToggle() {{ /* handled in onCheckboxChange */ }}
 
 // ==================== 筛选逻辑 ====================
 function getFilteredData() {{
@@ -761,7 +784,7 @@ function getFilteredData() {{
     return RAW_DATA.filter(row => {{
         if (selectedSystems.length > 0 && selectedSystems.length < ALL_SYSTEMS.length && !selectedSystems.includes(row.attr)) return false;
         if (selectedPeriods.length > 0 && selectedPeriods.length < ALL_PERIODS.length && !selectedPeriods.includes(row['周期'])) return false;
-        if (levelFilter && row['告警级别'] !== levelFilter) return false;
+        if (selectedLevels.length > 0 && selectedLevels.length < ALL_LEVELS.length && !selectedLevels.includes(row['告警级别'])) return false;
         if (searchText && !row.attr.toLowerCase().includes(searchText)) return false;
         return true;
     }});
@@ -1174,7 +1197,7 @@ function getFilteredTopData(n) {{
         .filter(row => {{
             if (selectedSystems.length > 0 && selectedSystems.length < ALL_SYSTEMS.length && !selectedSystems.includes(row.attr)) return false;
             if (selectedPeriods.length > 0 && selectedPeriods.length < ALL_PERIODS.length && !selectedPeriods.includes(row['周期'])) return false;
-            if (levelFilter && row['告警级别'] !== levelFilter) return false;
+            if (selectedLevels.length > 0 && selectedLevels.length < ALL_LEVELS.length && !selectedLevels.includes(row['告警级别'])) return false;
             return true;
         }})
         .map(row => ({{ ...row, _dealMs: parseDealTime(row['deal_time']) }}))
@@ -1365,14 +1388,15 @@ function goPage(p) {{ currentPage = p; applyAllFilters(); }}
 function resetFilters() {{
     selectedSystems = [...ALL_SYSTEMS];
     selectedPeriods = [...ALL_PERIODS];
-    levelFilter = '';
-    document.getElementById('filterLevel').value = '';
+    selectedLevels = [...ALL_LEVELS];
     document.getElementById('searchInput').value = '';
     // 更新多选UI
     document.querySelectorAll('#systemOptions input[type="checkbox"]').forEach(cb => cb.checked = true);
     document.querySelectorAll('#periodOptions input[type="checkbox"]').forEach(cb => cb.checked = true);
+    document.querySelectorAll('#levelOptions input[type="checkbox"]').forEach(cb => cb.checked = true);
     updateMultiSelectDisplay('multiSystem', 'systemText', 'systemCount', selectedSystems, ALL_SYSTEMS, '系统');
     updateMultiSelectDisplay('multiPeriod', 'periodText', 'periodCount', selectedPeriods, ALL_PERIODS, '周期');
+    updateMultiSelectDisplay('multiLevel', 'levelText', 'levelCount', selectedLevels, ALL_LEVELS, '级别');
     sortColumn = '告警记录数';
     sortDirection = 'desc';
     currentPage = 1;
@@ -1410,7 +1434,7 @@ function getFilteredRawData() {{
     return RAW_EXPORT.filter(row => {{
         if (selectedSystems.length > 0 && selectedSystems.length < ALL_SYSTEMS.length && !selectedSystems.includes(row.attr)) return false;
         if (selectedPeriods.length > 0 && selectedPeriods.length < ALL_PERIODS.length && !selectedPeriods.includes(row['周期'])) return false;
-        if (levelFilter && row['告警级别'] !== levelFilter) return false;
+        if (selectedLevels.length > 0 && selectedLevels.length < ALL_LEVELS.length && !selectedLevels.includes(row['告警级别'])) return false;
         return true;
     }});
 }}
@@ -1806,7 +1830,7 @@ def create_combined_weekly_statistics_with_chinese_names():
                     worksheet = writer.sheets['每周告警统计汇总']
                     for idx, col in enumerate(combined_df.columns):
                         max_length = max(
-                            combined_df[col].astype(str).map(len).max(),
+                            combined_df[col].fillna('').astype(str).str.len().max(),
                             len(col)
                         ) + 2
                         worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 30)

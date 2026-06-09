@@ -1,7 +1,7 @@
 ---
 name: alarm-statistics-analysis
 description: "告警数据清洗 + 多维度统计 + 交互式 HTML 报告生成工具"
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent (from user project)
 license: MIT
 dependencies: [python3, pandas, openpyxl, matplotlib, tqdm]
@@ -88,6 +88,15 @@ LEVEL_CHINESE_MAPPING = {
 }
 ```
 
+### 切换数据文件
+
+`config.py` 中有 **两处** 文件路径引用需要同步修改：
+```python
+INPUT_FILE = "xxx.xlsx"              # 主输入文件（第 4 行）
+INPUT_TOP_ALARMS_FILE = "xxx.xlsx"   # TOP 告警排序文件（第 14 行）
+```
+两处都指向同一个数据文件时，切换新文件必须两行一起改。
+
 ### 自定义导出字段
 ```python
 EXPORT_FIELDS = [
@@ -134,6 +143,33 @@ alarm_alter/
 3. `main.py` 运行完毕自动清理中间产物（`cleaned_data.xlsx`、`temp/`、合并 Excel）
 4. `config.py` 启动时检查 `INPUT_FILE` 是否存在
 5. 新增系统/修改导出字段只需编辑 `config.py`，无需改其他文件
+
+## 常见问题排查
+
+### 切换输入文件时 config.py 有多处引用
+
+`config.py` 中不止一处文件路径需要更新：
+```python
+INPUT_FILE = "xxx.xlsx"              # 主输入文件
+INPUT_TOP_ALARMS_FILE = "xxx.xlsx"   # TOP 告警排序文件
+```
+**切换新数据文件时两处都要修改**，否则启动检查会报 `FileNotFoundError`。
+
+### pandas 3.x 兼容性问题
+
+项目原始依赖 `pandas==1.5.3`。如果环境安装了 pandas 3.x，多处 `.astype(str).map(len).max()` 会因浮点 NaN 值抛出 `TypeError: object of type 'float' has no len()`。
+
+**修复方法**：全局替换为 `.fillna('').astype(str).str.len().max()`。
+
+受影响文件（共 5 个）：
+- `create_combined_weekly_statistics.py`
+- `create_combined_weekly_statistics_with_chinese_names.py`
+- `create_comprehensive_statistics.py`
+- `create_statistics_by_level_and_period.py`（6 处）
+- `merge_attr_calculate_total.py`
+- `calculate_attr_metrics.py`
+
+如果安装后运行报 `map(len)` 相关错误，按上述模式批量替换即可。详见 `references/pandas-compat-fix.md`。
 
 ## 源文件
 

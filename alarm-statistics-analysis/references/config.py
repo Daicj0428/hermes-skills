@@ -1,7 +1,7 @@
 import os
 
 # 原始数据文件（请替换为实际路径）
-INPUT_FILE = "7月份全量告警明细0801.xlsx"
+INPUT_FILE = "9月份全量系统全量告警.xlsx"
 # 输出目录
 OUTPUT_DIR = "statistics"
 # 日志文件
