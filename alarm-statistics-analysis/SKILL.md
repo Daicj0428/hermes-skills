@@ -245,14 +245,6 @@ python main.py --custom-periods "2025-07-01 - 2025-07-13,2025-08-01 - 2025-08-07
 | `map(len)` 报错 | pandas 版本 ≥ 3.0，按第 5 条修复 |
 | HTML 图表不显示 | 浏览器是否联网；Chart.js CDN 是否可达 |
 
-### 项目存在两个版本，务必用 GitHub 版
-
-本地 `/mnt/d/study/PythonProjects/alarm_alter/` 有一个**旧版**（11 脚本 main.py，产出 Excel + PNG 图表，无 HTML 报告）。
-
-GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流程：清洗 → HTML 报告 → 清理）。
-
-**识别方法**：打开 `main.py`，如果是 11 个脚本的流水线就是旧版；如果只有 `run_clean()` → `run_report()` → `cleanup()` 三个函数就是正确版本。
-
 ### 告警级别列值可能是中文或英文
 
 不同数据源的 `GRADE` 列格式不同 → 详见 **首次执行注意事项 §2**。
