@@ -1,7 +1,7 @@
 ---
 name: alarm-statistics-analysis
 description: "告警数据清洗 + 多维度统计 + 交互式 HTML 报告生成工具"
-version: 1.1.0
+version: 1.2.0
 author: Hermes Agent (from user project)
 license: MIT
 dependencies: [python3, pandas, openpyxl, matplotlib, tqdm]
@@ -90,12 +90,11 @@ LEVEL_CHINESE_MAPPING = {
 
 ### 切换数据文件
 
-`config.py` 中有 **两处** 文件路径引用需要同步修改：
+修改 `config.py` 中的 `INPUT_FILE`，指向你的 Excel 文件即可：
 ```python
-INPUT_FILE = "xxx.xlsx"              # 主输入文件（第 4 行）
-INPUT_TOP_ALARMS_FILE = "xxx.xlsx"   # TOP 告警排序文件（第 14 行）
+INPUT_FILE = "your_alert_data.xlsx"   # 替换为实际文件名
 ```
-两处都指向同一个数据文件时，切换新文件必须两行一起改。
+程序启动时会自动检查文件是否存在。
 
 ### 自定义导出字段
 ```python
@@ -144,16 +143,119 @@ alarm_alter/
 4. `config.py` 启动时检查 `INPUT_FILE` 是否存在
 5. 新增系统/修改导出字段只需编辑 `config.py`，无需改其他文件
 
-## 常见问题排查
+## 首次执行注意事项
 
-### 切换输入文件时 config.py 有多处引用
+首次在新环境或新数据文件上运行本工具时，请逐项检查以下配置：
 
-`config.py` 中不止一处文件路径需要更新：
-```python
-INPUT_FILE = "xxx.xlsx"              # 主输入文件
-INPUT_TOP_ALARMS_FILE = "xxx.xlsx"   # TOP 告警排序文件
+### 1. 确认数据列的实际情况（最重要）
+
+不同来源的告警 Excel 列名和值格式可能不同。**不要假设默认配置能直接匹配你的数据**。
+
+**检查方法**：
+```bash
+python3 -c "
+import pandas as pd
+df = pd.read_excel('你的文件.xlsx')
+print('=== 列名 ==='); print(df.columns.tolist())
+print('=== attr 唯一值 ==='); print(df['attr'].dropna().unique()[:20])
+print('=== GRADE 唯一值 (前10) ==='); print(df['GRADE'].dropna().unique()[:10])
+print('=== deal_status 唯一值 ==='); print(df['deal_status'].dropna().unique())
+"
 ```
-**切换新数据文件时两处都要修改**，否则启动检查会报 `FileNotFoundError`。
+
+### 2. 调整 config.py 的映射表
+
+根据第 1 步的检查结果调整映射：
+
+| 映射 | 场景 | 处理方式 |
+|------|------|---------|
+| **ATTR_CHINESE_MAPPING** | 数据中有未出现的系统代码 | 添加新条目 |
+| **ATTR_CHINESE_MAPPING** | 数据中代码与映射不匹配 | 修正 key 以匹配实际值 |
+| **LEVEL_CHINESE_MAPPING** | `GRADE` 列是中文（严重/重要/一般） | 映射表不起作用（中文直接保留），无需修改 |
+| **LEVEL_CHINESE_MAPPING** | `GRADE` 列是英文（serious/important/…） | 确保所有出现的英文值都有对应映射 |
+
+> **注意**：`GRADE` 列值如果是中文（如 `严重`、`重要`、`一般`），`LEVEL_CHINESE_MAPPING` 不会生效（中文值直接原样保留），这是正常的。
+
+### 3. 检查必需列是否存在
+
+程序依赖以下列名（区分大小写）：
+
+| 必需列 | 缺失时的后果 |
+|--------|-------------|
+| `alarm_first_time` | ⚠️ **报错退出** — 清洗阶段会丢弃无时间记录的行，若整列为空则无数据可处理 |
+| `attr` | 所有系统显示为原值（不会报错，但无中文名） |
+| `GRADE` | 告警级别为空，筛选器无效 |
+| `deal_status` | 已处理/未超时率统计失效（默认显示"未处理"） |
+| `ALARM_COUNT` | 每条记录计为 1（程序自动兜底） |
+
+### 4. Python 环境准备
+
+```bash
+# 推荐：创建虚拟环境
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 安装依赖
+pip install -r requirements.txt
+```
+
+### 5. pandas 3.x 兼容性
+
+如果你使用的 pandas 版本 ≥ 3.0，首次运行可能遇到 `TypeError: object of type 'float' has no len()`。
+
+→ 快速修复：运行 `references/pandas-compat-fix.md` 中的一键替换命令。
+
+### 6. 首次运行建议分步执行
+
+```bash
+# 第 1 步：仅清洗（验证数据能正常处理）
+python main.py --clean-only
+
+# 检查 statistics/cleaned_data.xlsx 是否生成成功、内容正确
+
+# 第 2 步：生成报告
+python main.py --skip-clean
+```
+
+分步执行能快速定位问题出在清洗阶段还是报告生成阶段。
+
+### 7. HTML 报告依赖 CDN
+
+报告的图表通过 Chart.js CDN 加载 (`cdn.jsdelivr.net`)，浏览器打开报告时需要联网。内网环境需提前下载 Chart.js 放到本地并修改 HTML 模板中的 `<script>` 标签。
+
+### 8. 大文件处理
+
+报告将全量清洗后数据内嵌为 JSON（约 50–60 MB），首次在浏览器打开可能耗时 10–30 秒，属于正常现象。
+
+### 9. 自定义统计周期
+
+如果数据跨越多个自然周但只想统计特定区间：
+```bash
+python main.py --custom-periods "2025-07-01 - 2025-07-13,2025-08-01 - 2025-08-07"
+```
+
+### 10. 快速排错清单
+
+| 现象 | 优先检查 |
+|------|---------|
+| `FileNotFoundError` | `config.py` 中 `INPUT_FILE` 是否正确；文件是否在项目目录下 |
+| 清洗后无数据 | `alarm_first_time` 列是否为空；自定义周期是否覆盖了数据时间范围 |
+| 系统名显示英文缩写 | `ATTR_CHINESE_MAPPING` 中缺少对应 key |
+| 告警级别筛选为空 | `GRADE` 列值格式与预期不符（中文/英文/混合） |
+| `map(len)` 报错 | pandas 版本 ≥ 3.0，按第 5 条修复 |
+| HTML 图表不显示 | 浏览器是否联网；Chart.js CDN 是否可达 |
+
+### 项目存在两个版本，务必用 GitHub 版
+
+本地 `/mnt/d/study/PythonProjects/alarm_alter/` 有一个**旧版**（11 脚本 main.py，产出 Excel + PNG 图表，无 HTML 报告）。
+
+GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流程：清洗 → HTML 报告 → 清理）。
+
+**识别方法**：打开 `main.py`，如果是 11 个脚本的流水线就是旧版；如果只有 `run_clean()` → `run_report()` → `cleanup()` 三个函数就是正确版本。
+
+### 告警级别列值可能是中文或英文
+
+不同数据源的 `GRADE` 列格式不同 → 详见 **首次执行注意事项 §2**。
 
 ### pandas 3.x 兼容性问题
 
