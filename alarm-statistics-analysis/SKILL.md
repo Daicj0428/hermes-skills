@@ -1,7 +1,7 @@
 ---
 name: alarm-statistics-analysis
 description: "告警数据清洗 + 多维度统计 + 交互式 HTML 报告生成工具"
-version: 1.3.1
+version: 1.3.2
 author: Hermes Agent (from user project)
 license: MIT
 dependencies: [python3, pandas, openpyxl, matplotlib, tqdm]
@@ -158,6 +158,7 @@ alarm_alter/
 3. `main.py` 运行完毕自动清理中间产物（`cleaned_data.xlsx`、`temp/`、合并 Excel）
 4. `config.py` 启动时检查 `INPUT_FILE` 是否存在
 5. 新增系统/修改导出字段只需编辑 `config.py`，无需改其他文件
+6. **修改 `report_generator.py` 时慎用 `patch` 工具**：该文件包含两套近乎相同的 HTML/JS 模板，fuzzy 匹配可能误判。删除/修改大段 HTML 时用 `sed` 代替。详见 `references/editing-report-generator.md`。
 
 ## 首次执行注意事项
 
@@ -295,3 +296,4 @@ GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流�
 - `references/requirements.txt` — Python 依赖清单
 - `references/pandas-compat-fix.md` — pandas 3.x 兼容性修复指南
 - `references/grafana-k8s-ops.md` — Grafana K8s 运维模式（SQLite 锁死 / ConfigMap 持久化 / 密码重置）
+- `references/editing-report-generator.md` — 修改 report_generator.py 时的 patch-tool 替代方案
