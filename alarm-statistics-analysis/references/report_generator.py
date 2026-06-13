@@ -1827,7 +1827,7 @@ def create_combined_weekly_statistics_with_chinese_names():
                     worksheet = writer.sheets['每周告警统计汇总']
                     for idx, col in enumerate(combined_df.columns):
                         max_length = max(
-                            combined_df[col].astype(str).map(len).max(),
+                            combined_df[col].fillna('').astype(str).str.len().max(),
                             len(col)
                         ) + 2
                         worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 30)
@@ -2490,27 +2490,6 @@ def _build_multi_file_html(comparison, table_data, all_systems, all_levels, all_
             <div style="height:350px;"><canvas id="chartLevelCompare"></canvas></div>
         </div>
     </div>
-
-    <!-- 数据表格 -->
-    <div class="table-card">
-        <h3>系统告警变化明细（点击表头排序）</h3>
-        <div class="table-wrapper">
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th onclick="sortTable('system')">业务系统</th>
-{file_label_headers}
-                        <th onclick="sortTable('change')">变化数量</th>
-                        <th onclick="sortTable('changePct')">变化比例</th>
-                        <th onclick="sortTable('trend')">趋势</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-        </div>
-        <div class="pagination" id="pagination"></div>
-    </div>
-
     <div class="footer">告警监控平台 &middot; 多文件对比分析 &middot; {datetime.now().year}</div>
 </div>
 
