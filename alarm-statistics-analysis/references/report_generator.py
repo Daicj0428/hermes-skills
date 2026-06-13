@@ -596,7 +596,6 @@ def generate_html_report(df, output_file, args):
                         <th onclick="sortTable('周期')">周期 <span class="sort-icon"></span></th>
                         <th onclick="sortTable('告警记录数')">告警记录数 <span class="sort-icon"></span></th>
                         <th onclick="sortTable('未超时处理记录数')">未超时处理记录数 <span class="sort-icon"></span></th>
-                        <th onclick="sortTable('处理率')">处理率(%) <span class="sort-icon"></span></th>
                         <th onclick="sortTable('未超时率')">未超时率(%) <span class="sort-icon"></span></th>
                     </tr>
                 </thead>
@@ -1368,13 +1367,12 @@ function renderTable(data) {{
     const pageData = data.slice(start, start + PAGE_SIZE);
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = pageData.map(r => {{
-        const pRate = r['处理率'], oRate = r['未超时率'];
-        const pBadge = pRate >= 90 ? 'rate-high' : pRate >= 60 ? 'rate-mid' : 'rate-low';
+        const oRate = r['未超时率'];
         const oBadge = oRate >= 90 ? 'rate-high' : oRate >= 60 ? 'rate-mid' : 'rate-low';
         return `<tr>
             <td><strong>${{r.attr}}</strong></td><td>${{r['告警级别'] || '-'}}</td><td>${{r['周期'] || '-'}}</td>
             <td>${{r['告警记录数'].toLocaleString()}}</td><td>${{r['未超时处理记录数'].toLocaleString()}}</td>
-            <td><span class="rate-badge ${{pBadge}}">${{pRate.toFixed(1)}}%</span></td><td><span class="rate-badge ${{oBadge}}">${{oRate.toFixed(1)}}%</span></td>
+            <td><span class="rate-badge ${{oBadge}}">${{oRate.toFixed(1)}}%</span></td>
         </tr>`;
     }}).join('');
     document.getElementById('tableInfo').textContent = '显示 ' + (data.length > 0 ? start + 1 : 0) + '-' + Math.min(start + PAGE_SIZE, data.length) + ' / 共 ' + data.length + ' 条';
