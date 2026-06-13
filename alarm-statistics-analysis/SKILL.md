@@ -1,63 +1,77 @@
 ---
 name: alarm-statistics-analysis
 description: "告警数据清洗 + 多维度统计 + 交互式 HTML 报告生成工具"
-version: 1.2.0
+version: 1.3.0
 author: Hermes Agent (from user project)
 license: MIT
 dependencies: [python3, pandas, openpyxl, matplotlib, tqdm]
 platforms: [linux, macos, windows]
 metadata:
   hermes:
-    tags: [alerting, statistics, HTML, report, data-cleaning, excel, monitoring]
+    tags: [alerting, statistics, HTML, report, data-cleaning, excel, monitoring, multi-file]
     related_skills: []
 ---
 
 # 告警统计分析工具
 
-对原始告警 Excel 数据进行清洗和多维度统计分析，生成**单文件交互式 HTML 报告**。报告无需后端服务，浏览器直接打开即可使用。
+对原始告警 Excel 数据进行清洗和多维度统计分析，生成**单文件交互式 HTML 报告**。支持单文件和多文件对比分析。报告无需后端服务，浏览器直接打开即可使用。
 
 ## 触发条件
 
 - 用户需要对告警 Excel 数据做统计分析
 - 用户说"告警报表"、"告警分析"、"告警统计"、"告警清洗"
 - 用户有监控告警数据需要生成可视化报告
+- 用户需要对比多个月份/来源的告警数据
 
 ## 功能概览
 
 | 模块 | 说明 |
 |------|------|
 | **摘要卡片** | 告警记录总数、未超时处理率、覆盖业务系统数（随筛选联动） |
-| **多选筛选器** | 支持系统、周期、告警级别三维度组合筛选 |
+| **多选筛选器** | 支持系统、周期、告警级别、**文件来源**四维度组合筛选 |
 | **动态图表** | 树状图（单周期）、系统×周期小多组柱状图、堆叠柱状图（按报警级别分层） |
 | **未超时处理率** | 各系统未超时处理率柱状图 |
 | **TOP 告警** | 按处理时长降序 TOP N（默认 20），支持折叠和自定义字段 CSV 导出 |
 | **明细表格** | 分页排序、搜索、筛选联动 |
 | **自定义导出** | 弹出面板勾选字段，导出筛选后的 CSV |
+| **🆕 多文件对比** | 同时分析多个月份/来源的告警数据，统一报告内对比 |
 
 ## 工作流程
 
-### 标准流程（一键执行）
+### 标准流程（一键执行 — 🆕 推荐）
 
 ```bash
 cd <项目目录>
-python main.py
+
+# 单文件分析
+python run_local.py --file 7月份全量告警明细0801.xlsx
+
+# 多文件对比分析
+python run_local.py --file 7月.xlsx --file 9月.xlsx --labels "7月告警,9月告警"
 ```
 
-自动完成三步骤：**数据清洗 → 生成 HTML 报告 → 清理中间产物**
+自动完成四步骤：**数据清洗 → 生成 HTML 报告 → 清理中间产物 → 自动打开报告**
 
 报告输出到 `statistics/告警统计分析报告_<时间戳>.html`。
-
-### 分步执行
-
-```bash
-python main.py --clean-only                          # 仅清洗数据
-python main.py --skip-clean                          # 跳过清洗，仅生成报告
-```
 
 ### 自定义统计周期
 
 ```bash
-python main.py --custom-periods "2025-07-01 - 2025-07-06,2025-07-07 - 2025-07-13"
+python run_local.py --file data.xlsx --periods "2025-07-01 - 2025-07-31,2025-08-01 - 2025-08-31"
+```
+
+### 自定义输出文件名
+
+```bash
+python run_local.py --file data.xlsx --output my_report.html
+```
+
+### 旧版入口（兼容）
+
+```bash
+python main.py                          # 单文件（需手动配置 config.py INPUT_FILE）
+python main.py --clean-only             # 仅清洗数据
+python main.py --skip-clean             # 跳过清洗，仅生成报告
 ```
 
 ## 环境要求
@@ -124,15 +138,17 @@ EXPORT_FIELDS = [
 
 ```
 alarm_alter/
-├── main.py                              # 主流程入口
-├── config.py                            # 全局配置 + 字段映射
-├── data_cleaner.py                      # 数据清洗（按周分 sheet）
-├── create_combined_weekly_statistics_with_chinese_names.py  # 统计 + HTML 报告
-├── requirements.txt                     # 依赖
-├── <原始告警数据>.xlsx                   # 输入数据（文件名在 config.py 配置）
-├── statistics/                          # 输出目录（运行后仅保留 HTML）
+├── run_local.py                       # 🆕 主入口（独立执行，支持多文件）
+├── main.py                            # 旧版入口（兼容，单文件模式）
+├── config.py                          # 全局配置 + 字段映射
+├── data_cleaner.py                    # 数据清洗（支持 output_prefix）
+├── report_generator.py                # 🆕 统计合并 + HTML 报告（支持多文件对比）
+├── requirements.txt                   # 依赖
+├── <原始告警数据>.xlsx                 # 输入数据
+├── statistics/                        # 输出目录（运行后仅保留 HTML）
 │   └── 告警统计分析报告_<timestamp>.html
-└── logs/                                # 日志（自动保留最新 3 个）
+├── logs/                              # 日志（自动保留最新 5 个）
+└── temp/                              # 临时目录（自动清理）
 ```
 
 ## 注意事项
@@ -245,6 +261,14 @@ python main.py --custom-periods "2025-07-01 - 2025-07-13,2025-08-01 - 2025-08-07
 | `map(len)` 报错 | pandas 版本 ≥ 3.0，按第 5 条修复 |
 | HTML 图表不显示 | 浏览器是否联网；Chart.js CDN 是否可达 |
 
+### 项目存在两个版本，务必用 GitHub 版
+
+本地 `/mnt/d/study/PythonProjects/alarm_alter/` 有一个**旧版**（11 脚本 main.py，产出 Excel + PNG 图表，无 HTML 报告）。
+
+GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流程：清洗 → HTML 报告 → 清理）。
+
+**识别方法**：打开 `main.py`，如果是 11 个脚本的流水线就是旧版；如果只有 `run_clean()` → `run_report()` → `cleanup()` 三个函数就是正确版本。
+
 ### 告警级别列值可能是中文或英文
 
 不同数据源的 `GRADE` 列格式不同 → 详见 **首次执行注意事项 §2**。
@@ -269,8 +293,10 @@ python main.py --custom-periods "2025-07-01 - 2025-07-13,2025-08-01 - 2025-08-07
 
 完整源码位于 `references/` 目录：
 
-- `references/main.py` — 主流程（清洗 → 报告 → 清理）
+- `references/run_local.py` — 🆕 主入口（独立执行，支持 `--file` 多文件）
+- `references/main.py` — 旧版入口（兼容）
 - `references/config.py` — 全局配置模版
-- `references/data_cleaner.py` — 数据清洗逻辑
-- `references/create_combined_weekly_statistics_with_chinese_names.py` — 统计 + HTML 报告生成器
+- `references/data_cleaner.py` — 数据清洗逻辑（支持 output_prefix）
+- `references/report_generator.py` — 🆕 统计 + HTML 报告生成器（支持多文件对比）
 - `references/requirements.txt` — Python 依赖清单
+- `references/pandas-compat-fix.md` — pandas 3.x 兼容性修复指南
