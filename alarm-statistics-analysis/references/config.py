@@ -1,11 +1,14 @@
 import os
 
+# 本地模式基础目录（back/ 目录所在位置）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # 原始数据文件（请替换为实际路径）
-INPUT_FILE = "9月份全量系统全量告警.xlsx"
-# 输出目录
-OUTPUT_DIR = "statistics"
+INPUT_FILE = "7月份全量告警明细0801.xlsx"
+# 输出目录（本地模式使用 back/statistics）
+OUTPUT_DIR = os.path.join(BASE_DIR, "statistics")
 # 日志文件
-LOG_FILE = "process.log"
+LOG_FILE = os.path.join(BASE_DIR, "logs", "process.log")
 
 # ==================== 字段映射 ====================
 # 系统名称映射（attr → 中文名），未匹配的保留原值
@@ -50,10 +53,6 @@ LEVEL_CHINESE_MAPPING = {
     'general': '一般告警', 'minor': '一般告警', 'info': '提示',
     'notice': '提示', 'normal': '一般告警', 'unknown': '未知',
 }
-
-# ==================== 启动检查 ====================
-if not os.path.exists(INPUT_FILE):
-    raise FileNotFoundError(f"输入文件 {INPUT_FILE} 不存在，请检查路径")
 
 # ==================== 自定义导出字段 ====================
 # 自定义导出时可选字段列表，修改此处即可调整前端导出弹窗
