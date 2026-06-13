@@ -1,7 +1,7 @@
 ---
 name: alarm-statistics-analysis
 description: "告警数据清洗 + 多维度统计 + 交互式 HTML 报告生成工具"
-version: 1.3.0
+version: 1.3.1
 author: Hermes Agent (from user project)
 license: MIT
 dependencies: [python3, pandas, openpyxl, matplotlib, tqdm]
@@ -275,19 +275,13 @@ GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流�
 
 ### pandas 3.x 兼容性问题
 
-项目原始依赖 `pandas==1.5.3`。如果环境安装了 pandas 3.x，多处 `.astype(str).map(len).max()` 会因浮点 NaN 值抛出 `TypeError: object of type 'float' has no len()`。
+项目原始依赖 `pandas==1.5.3`。如果环境安装了 pandas 3.x，`.astype(str).map(len).max()` 模式会因浮点 NaN 值抛出 `TypeError: object of type 'float' has no len()`。
 
 **修复方法**：全局替换为 `.fillna('').astype(str).str.len().max()`。
 
-受影响文件（共 5 个）：
-- `create_combined_weekly_statistics.py`
-- `create_combined_weekly_statistics_with_chinese_names.py`
-- `create_comprehensive_statistics.py`
-- `create_statistics_by_level_and_period.py`（6 处）
-- `merge_attr_calculate_total.py`
-- `calculate_attr_metrics.py`
+> **v1.3.0 注意**：旧版 6 个独立脚本已全部合并到 `report_generator.py`。如果该文件仍含 `map(len)` 模式，对 `report_generator.py` 执行同样的替换即可。
 
-如果安装后运行报 `map(len)` 相关错误，按上述模式批量替换即可。详见 `references/pandas-compat-fix.md`。
+如果安装后运行报 `map(len)` 相关错误，按上述模式替换。详见 `references/pandas-compat-fix.md`。
 
 ## 源文件
 
@@ -300,3 +294,4 @@ GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流�
 - `references/report_generator.py` — 🆕 统计 + HTML 报告生成器（支持多文件对比）
 - `references/requirements.txt` — Python 依赖清单
 - `references/pandas-compat-fix.md` — pandas 3.x 兼容性修复指南
+- `references/grafana-k8s-ops.md` — Grafana K8s 运维模式（SQLite 锁死 / ConfigMap 持久化 / 密码重置）
