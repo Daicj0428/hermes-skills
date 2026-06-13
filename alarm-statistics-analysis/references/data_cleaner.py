@@ -1,12 +1,17 @@
 import os
+import sys
 import pandas as pd
 import argparse
+
+# 确保本地模块优先加载
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import INPUT_FILE, OUTPUT_DIR
 
-def clean_data(custom_periods=None):
-    if not os.path.exists(INPUT_FILE):
-        raise FileNotFoundError(f"输入文件 {INPUT_FILE} 不存在")
-    df = pd.read_excel(INPUT_FILE)
+def clean_data(custom_periods=None, input_file=None, output_prefix=None):
+    file_path = input_file or INPUT_FILE
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"输入文件 {file_path} 不存在")
+    df = pd.read_excel(file_path)
     
     # 数据清洗
     df = df.dropna(subset=['alarm_first_time'])  # 删除时间缺失记录
@@ -96,7 +101,9 @@ def clean_data(custom_periods=None):
     
     # 添加调试输出
     print(f"准备写入文件到目录: {os.path.abspath(OUTPUT_DIR)}")
-    clean_path = os.path.join(OUTPUT_DIR, "cleaned_data.xlsx")
+    # 支持输出前缀（多文件模式）
+    output_name = f"{output_prefix}.xlsx" if output_prefix else "cleaned_data.xlsx"
+    clean_path = os.path.join(OUTPUT_DIR, output_name)
     print(f"完整文件路径: {os.path.abspath(clean_path)}")
     
     try:
@@ -194,13 +201,18 @@ def clean_data(custom_periods=None):
 if __name__ == "__main__":
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='数据清洗脚本')
+    parser.add_argument('--input-file', type=str, default=None,
+                        help='输入Excel文件路径 (默认使用 config.INPUT_FILE)')
     parser.add_argument('--custom-periods', type=str, default=None,
                         help='自定义周期范围，格式为 mm.dd - mm.dd,mm.dd - mm.dd')
+    parser.add_argument('--output-prefix', type=str, default=None,
+                        help='输出文件名前缀（多文件模式使用）')
     args = parser.parse_args()
     
     print("=== 开始执行数据清洗脚本 ===")
     try:
-        result_path = clean_data(custom_periods=args.custom_periods)
+        result_path = clean_data(custom_periods=args.custom_periods, input_file=args.input_file,
+                                 output_prefix=args.output_prefix)
         print(f"=== 数据清洗完成，结果保存到: {result_path} ===")
     except Exception as e:
         print(f"!!! 脚本执行失败: {str(e)} !!!")
