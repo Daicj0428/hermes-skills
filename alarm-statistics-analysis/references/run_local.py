@@ -164,6 +164,8 @@ def main():
     search_patterns = [
         "告警统计分析报告_*.html",
         "SRE-告警统计分析报告_*.html",
+        "告警统计分析报告_*_lite.html",
+        "SRE-告警统计分析报告_*_lite.html",
     ]
     reports = []
     for pattern in search_patterns:
