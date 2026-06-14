@@ -123,6 +123,47 @@ def parse_arguments():
     
     return args
 
+def _strip_lite(html):
+    """生成精简版报告：去除自定义导出相关功能（大幅减小文件体积）。"""
+    import re
+    
+    # 1. 移除"自定义导出"按钮
+    html = re.sub(
+        r'<button[^>]*openCustomExport\(\)[^>]*>自定义导出</button>\s*',
+        '', html
+    )
+    
+    # 2. 移除导出弹窗模态框（<!-- 自定义导出弹窗 --> 到对应的 </div></div>）
+    html = re.sub(
+        r'<!-- 自定义导出弹窗 -->.*?</div>\s*</div>\s*(?=<div class="footer"|</div>\s*<script>)',
+        '', html, flags=re.DOTALL
+    )
+    
+    # 3. 清空 RAW_EXPORT 大 JSON（最大体积来源），保留空数组避免 JS 报错
+    html = re.sub(
+        r'const RAW_EXPORT = \[.*?\];',
+        'const RAW_EXPORT = [];',
+        html, flags=re.DOTALL
+    )
+    
+    # 4. 移除自定义导出 JS 函数块（从注释标记到下一个 ==== 标记或关键函数前）
+    html = re.sub(
+        r'// =+\s*自定义导出.*?(?=\s*// =+\s*(?:柱状图|对比|筛选|树状图|汇总|系统|级别|退出)|// =+\s*$|\s*</script>)',
+        '', html, flags=re.DOTALL
+    )
+    
+    # 5. 移除 exportModal 点击事件监听
+    html = re.sub(
+        r"document\.getElementById\('exportModal'\)\.addEventListener\(.*?\n\s*\}\);\s*",
+        '', html, flags=re.DOTALL
+    )
+    
+    # 6. 移除孤立的 openCustomExport/closeCustomExport 函数引用（如果还有残留）
+    html = re.sub(r'function openCustomExport\(\)\s*\{[^}]*\}', '', html)
+    html = re.sub(r'function closeCustomExport\(\)\s*\{[^}]*\}', '', html)
+    
+    return html
+
 def generate_html_report(df, output_file, args):
     """生成交互式HTML统计报告（支持多维度筛选和指标排序）"""
     import json
@@ -1522,6 +1563,14 @@ document.addEventListener('click', function(e) {{
         with open(report_file, 'w', encoding='utf-8') as f:
             f.write(html_content)
         logging.info(f"交互式HTML报告已生成: {report_file}")
+        
+        # 生成精简版（无自定义导出）
+        lite_file = report_file.replace('.html', '_lite.html')
+        lite_content = _strip_lite(html_content)
+        with open(lite_file, 'w', encoding='utf-8') as f:
+            f.write(lite_content)
+        logging.info(f"精简版报告已生成: {lite_file}")
+        
         return report_file
     except Exception as e:
         logging.error(f"生成HTML报告时出错: {str(e)}")
@@ -2195,6 +2244,13 @@ def _generate_multi_file_report(all_dfs, file_labels, args):
         f.write(html_content)
     
     logging.info(f"多文件对比报告已生成: {report_file}")
+    
+    # 生成精简版（无自定义导出）
+    lite_file = report_file.replace('.html', '_lite.html')
+    lite_content = _strip_lite(html_content)
+    with open(lite_file, 'w', encoding='utf-8') as f:
+        f.write(lite_content)
+    logging.info(f"精简版报告已生成: {lite_file}")
 
 
 def _build_multi_file_html(comparison, table_data, all_systems, all_levels, all_periods,
