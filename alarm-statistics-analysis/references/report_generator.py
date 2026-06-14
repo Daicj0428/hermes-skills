@@ -124,43 +124,56 @@ def parse_arguments():
     return args
 
 def _strip_lite(html):
-    """生成精简版报告：去除自定义导出相关功能（大幅减小文件体积）。"""
+    """生成精简版报告：去除自定义导出相关功能，保留多维度筛选、图表、明细表格和 CSV 导出。
+    
+    采用按元素精确删除策略，不依赖区块注释标记，确保多维度筛选 JS 不被误删。
+    getFilteredRawData 被 exportTable()（CSV 导出）复用，绝对不能删！
+    """
     import re
     
-    # 1. 移除"自定义导出"按钮
+    # 1. 移除"自定义导出"按钮（保留"导出 CSV"按钮）
     html = re.sub(
         r'<button[^>]*openCustomExport\(\)[^>]*>自定义导出</button>\s*',
         '', html
     )
     
-    # 2. 移除导出弹窗模态框（<!-- 自定义导出弹窗 --> 到对应的 </div></div>）
+    # 2. 移除导出弹窗模态框（从注释标记到 <script> 前）
+    #    弹窗在主容器外部，不在 footer 包裹内
     html = re.sub(
-        r'<!-- 自定义导出弹窗 -->.*?</div>\s*</div>\s*(?=<div class="footer"|</div>\s*<script>)',
+        r'\n<!-- 自定义导出弹窗 -->.*?(?=\n<script>)',
         '', html, flags=re.DOTALL
     )
     
-    # 3. 清空 RAW_EXPORT 大 JSON（最大体积来源），保留空数组避免 JS 报错
+    # 3. 清空 RAW_EXPORT 大 JSON（最大体积来源 ~60MB），保留空数组避免 JS 报错
     html = re.sub(
-        r'const RAW_EXPORT = \[.*?\];',
+        r'const RAW_EXPORT = \[.+?\];',
         'const RAW_EXPORT = [];',
         html, flags=re.DOTALL
     )
     
-    # 4. 移除自定义导出 JS 函数块（从注释标记到下一个 ==== 标记或关键函数前）
+    # 4. 删除自定义导出注释行（// ==== ... 自定义导出 ...）
     html = re.sub(
-        r'// =+\s*自定义导出.*?(?=\s*// =+\s*(?:柱状图|对比|筛选|树状图|汇总|系统|级别|退出)|// =+\s*$|\s*</script>)',
-        '', html, flags=re.DOTALL
+        r'\n// =+\s*自定义导出[^\n]*\n',
+        '\n',
+        html
     )
     
-    # 5. 移除 exportModal 点击事件监听
+    # 5. 按函数名精确删除自定义导出相关 JS 函数
+    #    ⚠️ getFilteredRawData 被 exportTable()（CSV 导出）复用，绝对不能删！
+    for func_name in ['buildExportFieldGrid',
+                       'openCustomExport', 'closeCustomExport',
+                       'toggleAllExportFields', 'doCustomExport']:
+        html = re.sub(
+            r'\nfunction ' + func_name + r'\([^)]*\)\s*\{.*?\n\}',
+            '', html, flags=re.DOTALL
+        )
+    
+    # 6. 移除 exportModal 点击事件监听
     html = re.sub(
-        r"document\.getElementById\('exportModal'\)\.addEventListener\(.*?\n\s*\}\);\s*",
+        r"\n// 点击遮罩关闭弹窗\n"
+        r"document\.getElementById\('exportModal'\)\.addEventListener\(.*?\n\s*\}\);",
         '', html, flags=re.DOTALL
     )
-    
-    # 6. 移除孤立的 openCustomExport/closeCustomExport 函数引用（如果还有残留）
-    html = re.sub(r'function openCustomExport\(\)\s*\{[^}]*\}', '', html)
-    html = re.sub(r'function closeCustomExport\(\)\s*\{[^}]*\}', '', html)
     
     return html
 

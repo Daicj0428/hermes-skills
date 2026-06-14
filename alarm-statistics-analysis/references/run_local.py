@@ -223,13 +223,7 @@ def main():
     print(f"  可在浏览器中直接打开此文件")
     print(f"{'=' * 60}")
 
-    # 自动打开报告
-    if sys.platform == "win32":
-        os.startfile(local_report)
-    elif sys.platform == "darwin":
-        subprocess.run(["open", local_report])
-    else:
-        subprocess.run(["xdg-open", local_report])
+    # 报告文件路径已输出到控制台，由用户手动打开
 
 
 def _run_single_file_mode(args):
