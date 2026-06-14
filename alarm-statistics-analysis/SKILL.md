@@ -54,23 +54,6 @@ python run_local.py --file 7月.xlsx --file 9月.xlsx --labels "7月告警,9月�
 
 报告输出到 `statistics/`：完整版 `告警统计分析报告_<ts>.html` + 精简版 `告警统计分析报告_<ts>_lite.html`。
 
-### 生成后必须执行的交付流程
-
-**分析完成后，Agent 必须将报告发送给用户，不能只打印路径就结束。**
-
-1. **优先发送精简版** — 精简版体积小（~200KB），包含全部筛选/图表/CSV 导出，是用户最常用的版本
-2. **完整版按需发送** — 完整版通常超过 100MB，仅在用户明确要求或精简版无法满足需求时发送
-3. **发送方式**：使用 `MEDIA:/absolute/path/to/file` 在回复中附带文件
-4. **无法发送时**：明确告知用户报告所在路径，并建议用户直接在浏览器打开
-
-示例回复格式：
-```
-分析完成。报告已附上（精简版）：
-MEDIA:/root/hermes-workspace/alarm-report/statistics/告警统计分析报告_20260614_132843_lite.html
-
-如需完整版（含自定义导出，122MB）可告知。
-```
-
 ### 自定义统计周期
 
 ```bash
@@ -279,18 +262,6 @@ python main.py --custom-periods "2025-07-01 - 2025-07-13,2025-08-01 - 2025-08-07
 | `map(len)` 报错 | pandas 版本 ≥ 3.0，按第 5 条修复 |
 | HTML 图表不显示 | 浏览器是否联网；Chart.js CDN 是否可达 |
 
-### 项目存在两个版本，务必用 GitHub 版
-
-本地 `/mnt/d/study/PythonProjects/alarm_alter/` 有一个**旧版**（11 脚本 main.py，产出 Excel + PNG 图表，无 HTML 报告）。
-
-GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流程：清洗 → HTML 报告 → 清理）。
-
-**识别方法**：打开 `main.py`，如果是 11 个脚本的流水线就是旧版；如果只有 `run_clean()` → `run_report()` → `cleanup()` 三个函数就是正确版本。
-
-### 告警级别列值可能是中文或英文
-
-不同数据源的 `GRADE` 列格式不同 → 详见 **首次执行注意事项 §2**。
-
 ### pandas 3.x 兼容性问题
 
 项目原始依赖 `pandas==1.5.3`。如果环境安装了 pandas 3.x，`.astype(str).map(len).max()` 模式会因浮点 NaN 值抛出 `TypeError: object of type 'float' has no len()`。
@@ -312,5 +283,4 @@ GitHub `Daicj0428/hermes-skills` 仓库中的才是**正确版本**（3 步流�
 - `references/report_generator.py` — 🆕 统计 + HTML 报告生成器（支持多文件对比）
 - `references/requirements.txt` — Python 依赖清单
 - `references/pandas-compat-fix.md` — pandas 3.x 兼容性修复指南
-- `references/grafana-k8s-ops.md` — Grafana K8s 运维模式（SQLite 锁死 / ConfigMap 持久化 / 密码重置）
-- `references/editing-report-generator.md` — 修改 report_generator.py 时的 patch-tool 替代方案
+- `references/editing-report-generator.md` — 修改 report_generator.py 时的注意事项
