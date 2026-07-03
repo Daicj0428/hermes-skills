@@ -374,6 +374,8 @@ def _run_single_file_mode(args):
             if not combined_df.empty and 'attr' in combined_df.columns:
                 combined_df['系统名称'] = combined_df['attr'].map(config.ATTR_CHINESE_MAPPING).fillna(combined_df['attr'])
                 logging.info(f"已添加中文系统名称列")
+            if not raw_combined_df.empty and 'attr' in raw_combined_df.columns:
+                raw_combined_df['系统名称'] = raw_combined_df['attr'].map(config.ATTR_CHINESE_MAPPING).fillna(raw_combined_df['attr'])
 
             # 保存中间结果
             combined_df.to_excel(output_file, index=False, engine='openpyxl')
