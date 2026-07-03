@@ -273,6 +273,7 @@ def _run_single_file_mode(args):
                 return
 
             combined_df = pd.DataFrame()
+            raw_combined_df = pd.DataFrame()  # 原始数据（不聚合，用于完整版报告）
 
             periods = None
             if args.custom_periods:
@@ -334,6 +335,11 @@ def _run_single_file_mode(args):
                         df_grouped = df.groupby(available_cols).agg(agg_dict).reset_index()
                         df_grouped.rename(columns={'ALARM_COUNT': '告警数量'}, inplace=True)
                         combined_df = pd.concat([combined_df, df_grouped], ignore_index=True)
+                        # 保留原始明细数据（用于完整版报告嵌入 JSON）
+                        df_raw = df.copy()
+                        if '告警数量' not in df_raw.columns:
+                            df_raw['告警数量'] = 1
+                        raw_combined_df = pd.concat([raw_combined_df, df_raw], ignore_index=True)
                     else:
                         # 兜底：只按 attr 聚合
                         df_grouped = df.groupby('attr')['ALARM_COUNT'].sum().reset_index()
@@ -373,10 +379,10 @@ def _run_single_file_mode(args):
             combined_df.to_excel(output_file, index=False, engine='openpyxl')
             logging.info(f"中间结果已保存到: {output_file}")
 
-            # 生成 HTML 报告
+            # 生成 HTML 报告（使用原始明细数据以嵌入完整 JSON）
             if args.generate_report:
                 from report_generator import generate_html_report
-                generate_html_report(combined_df, output_file, args)
+                generate_html_report(raw_combined_df, output_file, args)
                 logging.info("HTML报告生成完成")
 
     except Exception as e:
