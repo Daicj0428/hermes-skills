@@ -144,7 +144,7 @@ def _strip_lite(html):
         '', html, flags=re.DOTALL
     )
     
-    # 3. 清空 RAW_EXPORT 大 JSON（最大体积来源 ~60MB），保留空数组避免 JS 报错
+    # 3. 清空 RAW_EXPORT，保留 TOP_DATA 供 TOP 告警
     html = re.sub(
         r'const RAW_EXPORT = \[.+?\];',
         'const RAW_EXPORT = [];',
@@ -241,6 +241,33 @@ def generate_html_report(df, output_file, args):
     # 填充NaN为空字符串
     raw_data = raw_data.fillna('')
     raw_data_json = raw_data.to_dict(orient='records')
+    
+    # 预计算 TOP 告警（按处理时长降序，默认 100 条，供精简版使用）
+    top_n = 100
+    top_data = raw_data.copy()
+    # 解析 deal_time 用于排序（与 JS 端 parseDealTime 逻辑一致）
+    def _parse_minutes(val):
+        if not val or val == '' or (isinstance(val, float) and pd.isna(val)):
+            return 0
+        if isinstance(val, (int, float)):
+            return float(val)
+        s = str(val).strip()
+        m = re.match(r'(\d+(?:\.\d+)?)\s*(?:h|小时|时)', s)
+        if m: return float(m.group(1)) * 60
+        m = re.match(r'(\d+(?:\.\d+)?)\s*(?:m|分钟|分)', s)
+        if m: return float(m.group(1))
+        m = re.match(r'(\d+):(\d{2})', s)
+        if m: return int(m.group(1)) * 60 + int(m.group(2))
+        try: return float(s)
+        except: return 0
+    top_data['_sort_minutes'] = top_data['deal_time'].apply(_parse_minutes)
+    top_data = top_data.sort_values('_sort_minutes', ascending=False).head(top_n)
+    top_data = top_data.drop(columns=['_sort_minutes'])
+    for col in top_data.columns:
+        if top_data[col].dtype == 'datetime64[ns]':
+            top_data[col] = top_data[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+    top_data = top_data.fillna('')
+    top_data_json = top_data.to_dict(orient='records')
     
     # ========== 2. 计算总体摘要数据 ==========
     total_alarms = int(dim_stats['告警记录数'].sum())
@@ -691,6 +718,7 @@ def generate_html_report(df, output_file, args):
 // ==================== 数据 & 配置 ====================
 const RAW_DATA = {json.dumps(table_data, ensure_ascii=False)};
 const RAW_EXPORT = {json.dumps(raw_data_json, ensure_ascii=False)};
+const TOP_DATA = {json.dumps(top_data_json, ensure_ascii=False)};  // 精简版 TOP 100 专用
 const ALL_SYSTEMS = {json.dumps(all_systems, ensure_ascii=False)};
 const ALL_LEVELS = {json.dumps(all_levels, ensure_ascii=False)};
 const ALL_PERIODS = {json.dumps(all_periods, ensure_ascii=False)};
@@ -1256,7 +1284,8 @@ function parseDealTime(val) {{
 }}
 
 function getFilteredTopData(n) {{
-    return RAW_EXPORT
+    const src = RAW_EXPORT.length > 0 ? RAW_EXPORT : TOP_DATA;
+    return src
         .filter(row => {{
             if (selectedSystems.length > 0 && selectedSystems.length < ALL_SYSTEMS.length && !selectedSystems.includes(row.attr)) return false;
             if (selectedPeriods.length > 0 && selectedPeriods.length < ALL_PERIODS.length && !selectedPeriods.includes(row['周期'])) return false;
