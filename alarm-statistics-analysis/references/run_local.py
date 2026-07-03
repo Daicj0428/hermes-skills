@@ -19,10 +19,14 @@ back/ 目录可以单独复制出来使用，只需要安装 requirements.txt �
 
 import os
 import sys
+import traceback
 import subprocess
 import shutil
 import glob
 import argparse
+import logging
+import time
+import re
 from datetime import datetime
 
 # 确保本地模块优先加载
@@ -351,6 +355,13 @@ def _run_single_file_mode(args):
                 final_agg = {'告警数量': 'sum'}
                 group_keys = [c for c in ['attr', '告警级别', '周期'] if c in combined_df.columns]
                 if 'deal_status' in combined_df.columns:
+                    # 展开 deal_status 列表 → 已处理数量 / 未超时处理数量
+                    combined_df = combined_df.groupby(group_keys).agg(
+                        告警数量=('告警数量', 'sum'),
+                        已处理数量=('deal_status', lambda x: sum(1 for lst in x for s in lst if pd.notna(s) and s != '')),
+                        未超时处理数量=('deal_status', lambda x: sum(1 for lst in x for s in lst if s == '未超时'))
+                    ).reset_index()
+                else:
                     combined_df = combined_df.groupby(group_keys).agg(final_agg).reset_index()
 
             # 替换中文系统名称
